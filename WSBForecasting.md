@@ -37,5 +37,5 @@ comments.head()
 Those both loaded in correctly so looks like we're good to move on to the processing steps (segmenting by date and counting up stock mentions)
 
 ```python
-
+comments['comment_sentiment'].hist()
 ```
