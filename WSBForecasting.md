@@ -114,3 +114,7 @@ for date in dates:
 ```python
 stock_mentions['2021-06-11']['amc']
 ```
+
+```python
+#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
+```
