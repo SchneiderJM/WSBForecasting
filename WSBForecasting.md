@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.10.2
+      jupytext_version: 1.11.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -56,9 +56,61 @@ stopwords = pickle.load(open('./stopwords.p','rb'))
 ```
 
 ```python
-posts['date_posted'].map(lambda x: x[0:10]).unique()
+#Gathering the dates in the dataset
+dates = posts['date_posted'].map(lambda x: x[0:10]).unique()
+
+#Counting up mentions of stocks by date
+stock_mentions = {date:{ticker.lower():0 for ticker in tickerToName.keys() if (ticker==ticker)} for date in dates}
 ```
 
 ```python
+#Finds if a given ticker is in the text
+#Since tickers are short and often appear in common words, just counting up their direct appearances
+#would not be very accurate
+#The function below checks a few extra cases that would be hard to represent in just a lambda function
+def find_ticker_in_text(text,ticker,stopwords):
+    #Some tickers are used as words, so this removes common words
+    #Luckily, stopwords tend to be short words that are also tickers, so typical NLP stopwords
+    #Are a decent proxy
+    if (ticker not in stopwords):
+        #Handles if the ticker is mentioned mid sentence or at the start of a sentence
+        if (' '+ticker+' ' in text):
+            return(True)
+        #Handles if the ticker is at the end of the sentence
+        elif (' '+ticker+'.' in text):
+            return(True)
+        #Handles if the ticker is at the start of the text
+        elif (text[0:(len(ticker)+1)] == (ticker+' ')):
+            return(True)
+        #Handles if the ticker is at the end of the text
+        elif (text[-1*(len(ticker)-2):-1] == (' '+ticker)):
+            return(True)
+        else:
+            return(False)
+    else:
+        return(False)
+```
 
+```python
+for date in dates:
+    #Comments made on the date being examined
+    dated_comments = comments[comments['date_posted'].map(lambda x: True if date in x else False)]
+    #Posts made on the date being examined
+    dated_posts = posts[posts['date_posted'].map(lambda x: True if date in x else False)]
+    
+    #Counts up ticker mentions
+    for ticker in stock_mentions[date].keys():
+        stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+        stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+        stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+        
+    #Counts up stock name mentions
+    for name in nameToTicker.keys():
+        stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+        stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+        stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+```
+
+```python
+stock_mentions['2021-06-11']['amc']
 ```
