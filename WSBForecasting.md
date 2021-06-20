@@ -79,6 +79,9 @@ def find_ticker_in_text(text,ticker,stopwords):
         #Handles if the ticker is at the end of the sentence
         elif (' '+ticker+'.' in text):
             return(True)
+        #Handles the case where somebody put a $ in front of the stock ticker
+        elif ('$'+ticker+' ' in text):
+            return(True)
         #Handles if the ticker is at the start of the text
         elif (text[0:(len(ticker)+1)] == (ticker+' ')):
             return(True)
@@ -92,6 +95,9 @@ def find_ticker_in_text(text,ticker,stopwords):
 ```
 
 ```python
+#This counts up every stock's mention by the date it is mentioned on
+#This can easily be put into a function and used as a cloud service combined with the 
+#find_ticker_in_text() function above
 for date in dates:
     #Comments made on the date being examined
     dated_comments = comments[comments['date_posted'].map(lambda x: True if date in x else False)]
@@ -112,9 +118,70 @@ for date in dates:
 ```
 
 ```python
-stock_mentions['2021-06-11']['amc']
+#The above loop takes a really long time but that can be processed on a schedule later
+#So, for testing purposes across different sessions, I dumped the results as a pickle
+#to load in later
+#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
 ```
 
 ```python
-#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
+stock_mentions = pickle.load(open('./stock_mentions.p','rb'))
+```
+
+```python
+#total number of mentions regardless of date
+total_mentions = {}
+for date in stock_mentions:
+    for ticker in stock_mentions[date]:
+        if (ticker not in total_mentions):
+            total_mentions[ticker] = stock_mentions[date][ticker]
+        else:
+            total_mentions[ticker] += stock_mentions[date][ticker]
+            
+#This sorts the total mentions            
+#Only works properly in Python 3.7 or greater because dictionary keys are sorted in Python 3.7
+total_mentions = {k: v for k, v in reversed(sorted(total_mentions.items(), key=lambda item: item[1]))}
+```
+
+```python
+#Grabbing the first 12 tickers
+top_tickers = list(total_mentions.keys())[0:12]
+
+daily_counts = {}
+
+for ticker in top_tickers:
+    daily_counts[ticker] = []
+    for date in dates:
+        daily_counts[ticker].append(stock_mentions[date][ticker])
+```
+
+```python
+import matplotlib.pyplot as plt
+
+#Plotting one of the tickers
+plt.plot(list(map(lambda x: x[5:],dates)),daily_counts['next'])
+```
+
+# Time series forecasting
+
+Below, a basic ARIMA forecast is done using the statsmodels library
+
+```python
+from statsmodels.tsa.arima.model import ARIMA
+from datetime import datetime
+
+#Converts dates to datetime objects
+dates_converted = list(map(lambda x: datetime.strptime(x,'%Y-%m-%d'),dates))
+
+model = ARIMA(daily_counts['bb'],order=(8,3,4))
+
+model_fit = model.fit()
+```
+
+```python
+plt.plot(dates_converted,model_fit.predict(1,8),dates_converted,daily_counts['bb'])
+```
+
+```python
+
 ```
