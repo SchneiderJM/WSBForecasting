@@ -20,6 +20,36 @@ The purpose of this notebook is to outline the process of gathering and processi
 For consistency, some sample data is included in this notebook, it is real data from the database, including posts and comments from the last week (so June 6 - June 13) and the list of all authors registered in the database so far. The sample data is saved in a json format in order to prevent issues with delimiters. Since Reddit is an online forum, who knows what kinds of characters they use, no delimiter is safe.
 
 ```python
+#Some processing that has to take place on a raw database export
+#This does not need to be run again on the files included in the repo
+import json
+
+#Opens the json files with the built-in json module
+#Uses the cp850 encoder to handle all of the rocket ship emojis
+posts = json.load(open('./posts.json',encoding = 'cp850'))
+comments = json.load(open('./comments.json',encoding='cp850'))
+
+posts2 = {}
+for index,post in enumerate(posts):
+    posts2[index] = post
+    
+comments2 = {}
+for index,comment in enumerate(comments):
+    comments2[index] = comment
+    
+json.dump(posts2,open('./posts.json','w'))
+json.dump(comments2,open('./comments.json','w'))
+```
+
+```python
+po
+```
+
+```python
+posts
+```
+
+```python
 import pandas as pd
 import pickle
 
