@@ -57,6 +57,7 @@ stopwords = pickle.load(open('./stopwords.p','rb'))
 
 ```python
 #Gathering the dates in the dataset
+#The [0:10] is subsetting the date string to only take YYYY-MM-DD
 dates = posts['date_posted'].map(lambda x: x[0:10]).unique()
 
 #Counting up mentions of stocks by date
