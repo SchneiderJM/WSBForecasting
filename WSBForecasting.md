@@ -19,7 +19,7 @@ The purpose of this notebook is to outline the process of gathering and processi
 
 For consistency, some sample data is included in this notebook, it is real data from the database, including posts and comments from the last week (so June 6 - June 13) and the list of all authors registered in the database so far. The sample data is saved in a json format in order to prevent issues with delimiters. Since Reddit is an online forum, who knows what kinds of characters they use, no delimiter is safe.
 
-```python
+<!-- #raw -->
 #Some processing that has to take place on a raw database export
 #This does not need to be run again on the files included in the repo
 import json
@@ -39,15 +39,7 @@ for index,comment in enumerate(comments):
     
 json.dump(posts2,open('./posts.json','w'))
 json.dump(comments2,open('./comments.json','w'))
-```
-
-```python
-po
-```
-
-```python
-posts
-```
+<!-- #endraw -->
 
 ```python
 import pandas as pd
@@ -126,33 +118,80 @@ def find_ticker_in_text(text,ticker,stopwords):
 ```
 
 ```python
+#Wrapping the previous date counter in a function for multiprocessing
 #This counts up every stock's mention by the date it is mentioned on
-#This can easily be put into a function and used as a cloud service combined with the 
-#find_ticker_in_text() function above
-for date in dates:
-    #Comments made on the date being examined
-    dated_comments = comments[comments['date_posted'].map(lambda x: True if date in x else False)]
-    #Posts made on the date being examined
-    dated_posts = posts[posts['date_posted'].map(lambda x: True if date in x else False)]
-    
-    #Counts up ticker mentions
-    for ticker in stock_mentions[date].keys():
-        stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
-        stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
-        stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
-        
-    #Counts up stock name mentions
-    for name in nameToTicker.keys():
-        stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
-        stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
-        stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+def count_mentions_by_date(dates,posts,comments,stopwords,tickerToName,nameToTicker,mpqueue):
+    #Counting up mentions of stocks by date
+    stock_mentions = {date:{ticker.lower():0 for ticker in tickerToName.keys() if (ticker==ticker)} for date in dates}
+    for date in dates:
+        #Comments made on the date being examined
+        dated_comments = comments[comments['date_posted'].map(lambda x: True if date in x else False)]
+        #Posts made on the date being examined
+        dated_posts = posts[posts['date_posted'].map(lambda x: True if date in x else False)]
+
+        #Counts up ticker mentions
+        for ticker in stock_mentions[date].keys():
+            stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+            stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+            stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,ticker,stopwords)))
+
+        #Counts up stock name mentions
+        for name in nameToTicker.keys():
+            stock_mentions[date][ticker] += sum(dated_comments['text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+            stock_mentions[date][ticker] += sum(dated_posts['post_title'].map(lambda x: find_ticker_in_text(x,name,stopwords)))
+            stock_mentions[date][ticker] += sum(dated_posts['self_text'].map(lambda x: find_ticker_in_text(x,name,stopwords)))     
+    mpqueue.put(stock_mentions)
 ```
+
+## Multiprocessing Note:
+
+This _needs_ to be run on a Linux or Unix based-system (or maybe MacOS?) since multiprocessing works very differently in python on those platforms than it does on Windows. If you attempt to run the code below on Windows, it'll hang and never complete anything. On Linux it works fine.
+
+<!-- #raw -->
+from multiprocessing import cpu_count, Process, Queue
+
+#Gathering the dates in the dataset
+#The [0:10] is subsetting the date string to only take YYYY-MM-DD
+dates = list(posts['date_posted'].map(lambda x: x[0:10]).unique())
+
+#Counts up the number of cpu cores on the system
+num_cpus = cpu_count()
+#Holds the subsets of dates to be assigned to each cpu core
+datelist = []
+#Calculates how many dates to be handled by each cpu core, the final cpu will get any extras
+dates_per_cpu = int(len(dates)/num_cpus)
+#Getting the date split
+for cpu in range(num_cpus):
+    datelist.append(dates[dates_per_cpu*cpu:dates_per_cpu*(cpu+1)])
+    
+
+plist = []
+qlist = []
+#Setting up the necessary processes and starting their run
+for cpu in range(num_cpus):
+    qlist.append(Queue())
+    plist.append(Process(target=count_mentions_by_date,
+                         args=(datelist[cpu],posts,comments,stopwords,tickerToName,nameToTicker,qlist[cpu])))
+
+    plist[cpu].start()
+    
+outlist = []
+#Uses the queue's .get function which will pause execution of the main Python thread until it gets what it came for
+#(the result from the Process)
+for cpu in range(num_cpus):
+    outlist.append(qlist[cpu].get())
+                 
+#Concatenates the result into one final dictionary mapping date to ticker to mention count
+stock_mentions = {}
+for out in outlist:
+    stock_mentions = {**stock_mentions,**out}
+<!-- #endraw -->
 
 ```python
 #The above loop takes a really long time but that can be processed on a schedule later
 #So, for testing purposes across different sessions, I dumped the results as a pickle
 #to load in later
-#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
+pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
 ```
 
 ```python
