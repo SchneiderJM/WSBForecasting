@@ -1,0 +1,31 @@
+[1mdiff --git a/WSBForecasting.md b/WSBForecasting.md[m
+[1mindex e22946d..233af2d 100644[m
+[1m--- a/WSBForecasting.md[m
+[1m+++ b/WSBForecasting.md[m
+[36m@@ -191,7 +191,7 @@[m [mfor out in outlist:[m
+ #The above loop takes a really long time but that can be processed on a schedule later[m
+ #So, for testing purposes across different sessions, I dumped the results as a pickle[m
+ #to load in later[m
+[31m-pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))[m
+[32m+[m[32m#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))[m
+ ```[m
+ [m
+ ```python[m
+[36m@@ -229,7 +229,7 @@[m [mfor ticker in top_tickers:[m
+ import matplotlib.pyplot as plt[m
+ [m
+ #Plotting one of the tickers[m
+[31m-plt.plot(list(map(lambda x: x[5:],dates)),daily_counts['next'])[m
+[32m+[m[32mplt.plot(list(map(lambda x: x[5:],dates)),daily_counts['bb'])[m
+ ```[m
+ [m
+ # Time series forecasting[m
+[36m@@ -249,7 +249,7 @@[m [mmodel_fit = model.fit()[m
+ ```[m
+ [m
+ ```python[m
+[31m-plt.plot(dates_converted,model_fit.predict(1,8),dates_converted,daily_counts['bb'])[m
+[32m+[m[32mplt.plot(dates_converted,model_fit.predict(1,32),dates_converted,daily_counts['bb'])[m
+ ```[m
+ [m
+ ```python[m

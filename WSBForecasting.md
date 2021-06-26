@@ -191,7 +191,7 @@ for out in outlist:
 #The above loop takes a really long time but that can be processed on a schedule later
 #So, for testing purposes across different sessions, I dumped the results as a pickle
 #to load in later
-pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
+#pickle.dump(stock_mentions,open('./stock_mentions.p','wb'))
 ```
 
 ```python
@@ -229,7 +229,7 @@ for ticker in top_tickers:
 import matplotlib.pyplot as plt
 
 #Plotting one of the tickers
-plt.plot(list(map(lambda x: x[5:],dates)),daily_counts['next'])
+plt.plot(list(map(lambda x: x[5:],dates)),daily_counts['bb'])
 ```
 
 # Time series forecasting
@@ -249,7 +249,7 @@ model_fit = model.fit()
 ```
 
 ```python
-plt.plot(dates_converted,model_fit.predict(1,8),dates_converted,daily_counts['bb'])
+plt.plot(dates_converted,model_fit.predict(1,32),dates_converted,daily_counts['bb'])
 ```
 
 ```python
