@@ -253,5 +253,41 @@ plt.plot(dates_converted,model_fit.predict(1,32),dates_converted,daily_counts['b
 ```
 
 ```python
+from datetime import timedelta
 
+#a dictionary mapping each of the most mentioned stock tickers to the historical and predicted trends
+ticker_graph_data = {}
+
+#new_days is the number of days to predict forward
+new_days = 7
+#prediction dates stores the new dates that the model is predicting for
+prediction_dates = [dates_converted[-1]+timedelta(1)]
+#Adds on the new days using timedelta so that months/years are handled automatically
+for day in range(new_days-1):
+    prediction_dates.append(prediction_dates[-1] + timedelta(1))
+    
+
+for ticker in top_tickers:
+    #Trains a new ARIMA model for every ticker
+    model = ARIMA(daily_counts[ticker],order=(8,0,4))
+    #Fits the model
+    model_fit = model.fit()
+    #Gets the predictions for the next 7 days after what is available in the daily_counts list
+    predictions = model_fit.predict(len(daily_counts[ticker]),len(daily_counts[ticker])+new_days)
+    
+    #Below, the historical and forecasted data are put together into one dictionary structure, 
+    #The dates are converted to "MM-DD"
+    #The historical data
+    historical = [(str(dates_converted[i].month)+'-'+str(dates_converted[i].day),daily_counts[ticker][i]) for i in range(len(dates_converted))]
+    
+    #The predictions
+    prediction_data = [((str(prediction_dates[i].month)+'-'+str(prediction_dates[i].day)),predictions[i]) for i in range(len(prediction_dates))]
+    
+    ticker_graph_data[ticker] = {'historical':historical,'prediction':prediction_data}
+```
+
+```python
+#Plots out the final result calculated just as a sample
+plt.figure(figsize=(20,20))
+plt.plot(list(map(lambda x: x[0],historical)),list(map(lambda x: x[1],historical)),list(map(lambda x: x[0],prediction_data)),list(map(lambda x: x[1],prediction_data)))
 ```
