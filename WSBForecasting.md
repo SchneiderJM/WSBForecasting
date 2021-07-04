@@ -278,10 +278,11 @@ for ticker in top_tickers:
     #Below, the historical and forecasted data are put together into one dictionary structure, 
     #The dates are converted to "MM-DD"
     #The historical data
-    historical = [(str(dates_converted[i].month)+'-'+str(dates_converted[i].day),daily_counts[ticker][i]) for i in range(len(dates_converted))]
-    
+    #historical = [(str(dates_converted[i].month)+'-'+str(dates_converted[i].day),daily_counts[ticker][i]) for i in range(len(dates_converted))]
+    historical = [(dates_converted[i].isoformat(),daily_counts[ticker][i]) for i in range(len(dates_converted))]
     #The predictions
-    prediction_data = [((str(prediction_dates[i].month)+'-'+str(prediction_dates[i].day)),predictions[i]) for i in range(len(prediction_dates))]
+    #prediction_data = [((str(prediction_dates[i].month)+'-'+str(prediction_dates[i].day)),predictions[i]) for i in range(len(prediction_dates))]
+    prediction_data = [(dates_converted[i].isoformat(),predictions[i]) for i in range(len(prediction_dates))]
     
     ticker_graph_data[ticker] = {'historical':historical,'prediction':prediction_data}
 ```
