@@ -286,6 +286,12 @@ for ticker in top_tickers:
     ticker_graph_data[ticker] = {'historical':historical,'prediction':prediction_data}
 ```
 
+<!-- #raw -->
+import json
+
+json.dump(ticker_graph_data,open('./ticker_graph_data.json','w'))
+<!-- #endraw -->
+
 ```python
 #Plots out the final result calculated just as a sample
 plt.figure(figsize=(20,20))
