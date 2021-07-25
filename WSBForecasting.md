@@ -406,11 +406,16 @@ comments['mentioned_tickers'] = comments['mentioned_tickers'].map(lambda x: eval
 ```
 
 ```python
+tickerToName = pickle.load(open('./tickerToName.p','rb'))
+```
+
+```python
 #Counting up stock mentions
 mentions_per_date = {}
 dates = list(posts['date_posted'].unique())
+
 for date in dates:
-    mentions_per_date[date] = {}
+    mentions_per_date[date] = {ticker.lower():0 for ticker in tickerToName.keys() if (ticker==ticker)}
     #Gets the post by dates
     dated_posts = posts[posts['date_posted'] == date]
     #Removes the empty lists where no stocks were mentioned from titles
@@ -423,48 +428,63 @@ for date in dates:
     #Counts up mentions in titles
     for index in range(len(title_posts)):
         for mention in title_posts['title_mentions'][index]:
-            if (mention in mentions_per_date[date]):
-                mentions_per_date[date][mention] += 1
-            else:
-                mentions_per_date[date][mention] = 1
+            mentions_per_date[date][mention] += 1
     #Comments up mentions in self_text    
     for index in range(len(text_posts)):
         for mention in text_posts['text_mentions'][index]:
-            if (mention in mentions_per_date[date]):
-                mentions_per_date[date][mention] += 1
-            else:
-                mentions_per_date[date][mention] = 1
+            mentions_per_date[date][mention] += 1
     #Counts up mentions in comments
     for index in range(len(dated_comments)):
         for mention in dated_comments['mentioned_tickers'][index]:
-            if (mention in mentions_per_date[date]):
-                mentions_per_date[date][mention] += 1
-            else:
-                mentions_per_date[date][mention] = 1
+            mentions_per_date[date][mention] += 1
+```
+
+```python
+#total number of mentions regardless of date
+total_mentions = {}
+for date in mentions_per_date:
+    for ticker in mentions_per_date[date]:
+        if (ticker not in total_mentions):
+            total_mentions[ticker] = mentions_per_date[date][ticker]
+        else:
+            total_mentions[ticker] += mentions_per_date[date][ticker]
+            
+#This sorts the total mentions            
+#Only works properly in Python 3.7 or greater because dictionary keys are sorted in Python 3.7
+total_mentions = {k: v for k, v in reversed(sorted(total_mentions.items(), key=lambda item: item[1]))}
+```
+
+```python
+top_tickers = list(total_mentions.keys())[0:12]
 ```
 
 # Time series forecasting
 
-Below, a basic ARIMA forecast is done using the statsmodels library
+Below, a basic SARIMAX forecast is done using the statsmodels library. I originally tried ARIMA, but statsmodels' ARIMA implementation is buggy and SARIMAX is (allegedly) better anyway.
 
 ```python
-from statsmodels.tsa.arima.model import ARIMA
+#Converting the mentions_per_date, which goes mentions_per_date[date][ticker] = count
+#into "daily_counts" which uses daily_counts[ticker][date] = count
+daily_counts = {ticker.lower():[] for ticker in tickerToName.keys() if (ticker==ticker)}
+```
+
+```python
+for date in mentions_per_date:
+    for ticker in mentions_per_date[date]:
+        daily_counts[ticker].append(mentions_per_date[date][ticker])
+```
+
+```python
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 #Converts dates to datetime objects
 dates_converted = list(map(lambda x: datetime.strptime(x,'%Y-%m-%d'),dates))
 
-model = ARIMA(daily_counts['bb'],order=(8,3,4))
+model = SARIMAX(daily_counts['bb'],order=(8,3,4))
 
 model_fit = model.fit()
-```
-
-```python
-
-```
-
-```python
-plt.plot(dates_converted,model_fit.predict(1,32),dates_converted,daily_counts['bb'])
 ```
 
 ```python
@@ -483,8 +503,8 @@ for day in range(new_days-1):
     
 
 for ticker in top_tickers:
-    #Trains a new ARIMA model for every ticker
-    model = ARIMA(daily_counts[ticker],order=(8,0,4))
+    #Trains a new SARIMAX model for every ticker
+    model = SARIMAX(daily_counts[ticker],order=(8,0,4))
     #Fits the model
     model_fit = model.fit()
     #Gets the predictions for the next 7 days after what is available in the daily_counts list
@@ -502,11 +522,24 @@ for ticker in top_tickers:
     ticker_graph_data[ticker] = {'historical':historical,'prediction':prediction_data}
 ```
 
-<!-- #raw -->
+```python
+from gcloud import storage
+from oauth2client.service_account import ServiceAccountCredentials
 import json
 
-json.dump(ticker_graph_data,open('./ticker_graph_data.json','w'))
-<!-- #endraw -->
+with(open('./personalwebsite-305402-c83550ecacf7.json','r')) as file:
+    gcloud_credentials = json.load(file)
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcloud_credentials)
+client = storage.Client(credentials=credentials,project='PersonalWebsite')
+bucket = client.get_bucket('jasonswebsite_cached_data')
+blob = bucket.blob('ticker_graph_data.json')
+
+blob.upload_from_string(
+       data=json.dumps(ticker_graph_data),
+       content_type='application/json'
+    )
+blob.make_public()
+```
 
 ```python
 #Plots out the final result calculated just as a sample
